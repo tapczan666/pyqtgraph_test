@@ -46,7 +46,7 @@ class Analyzer(QtGui.QWidget):
         self.plot = pg.PlotWidget()
         self.plotLayout.addWidget(self.plot)
         self.plot.showGrid(x=True, y=True)
-        self.plot.setYRange(-4, 4)
+        self.plot.setYRange(0, 100)
         self.curve = self.plot.plot(pen='y')
 
     def createWaterfall(self):
@@ -54,6 +54,9 @@ class Analyzer(QtGui.QWidget):
         self.plotLayout.addWidget(self.waterfallPlot)
         self.waterfallPlot.setYRange(-self.waterfallHistorySize, 0)
         self.waterfallPlot.setXLink(self.plot)
+
+        self.waterfallHistogram = pg.HistogramLUTItem()
+        self.waterfallHistogram.gradient.loadPreset("flame")
 
         self.waterfallImg = None
 
@@ -66,14 +69,18 @@ class Analyzer(QtGui.QWidget):
         if self.waterfallImg is None:
             self.waterfallImgArray = np.zeros((self.waterfallHistorySize, len(data)))
             self.waterfallImg = pg.ImageItem()
-            self.waterfallImg.scale((data[-1] - data[0]) / len(data), 1)
+            #self.waterfallImg.scale((data[-1] - data[0]) / len(data), 1)
+            self.waterfallImg.scale(1, 1)
+            #self.waterfallImg.setPxMode(False)
+            self.waterfallImg.setPos(0,-self.waterfallHistorySize)
             self.waterfallPlot.clear()
             self.waterfallPlot.addItem(self.waterfallImg)
+            self.waterfallHistogram.setImageItem(self.waterfallImg)
 
         self.waterfallImgArray = np.roll(self.waterfallImgArray, -1, axis=0)
         self.waterfallImgArray[-1] = data
         self.waterfallImg.setImage(self.waterfallImgArray.T,
-                                   autoLevels=True, autoRange=True)
+                                   autoLevels=True, autoRange=False)
 
 
 class Generator(QtCore.QObject):
@@ -87,6 +94,8 @@ class Generator(QtCore.QObject):
     def work(self):
         while True:
             temp = self.data[self.ptr%10]
+            temp = np.fft.fft(temp,1000)
+            temp = np.abs(temp)
             self.dataUpdated.emit(temp)
             if self.ptr==9:
                 self.ptr = 0
